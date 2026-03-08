@@ -1,0 +1,245 @@
+version: '3'
+
+vars:
+  BINARY_NAME: gdsnip
+  API_BINARY: gdsnip-api
+  VERSION: 0.1.0
+  DATABASE_URL: postgres://gdsnip:gdsnip@localhost:5432/gdsnip?sslmode=disable
+
+tasks:
+  default:
+    desc: List all available tasks
+    cmds:
+      - task --list
+
+  # ==================== Development ====================
+
+  dev:api:
+    desc: Run API with hot reload (requires air)
+    cmds:
+      - |
+        air -c .air.toml || \
+        echo "Install air: go install github.com/air-verse/air@latest"
+    dir: .
+
+  dev:cli:
+    desc: Build and install CLI locally
+    cmds:
+      - go build -o ./bin/{{.BINARY_NAME}} ./cmd/cli
+      - echo "Binary built at ./bin/{{.BINARY_NAME}}"
+
+  # ==================== Build ====================
+
+  build:
+    desc: Build all binaries
+    cmds:
+      - task: build:cli
+      - task: build:api
+
+  build:cli:
+    desc: Build CLI binary
+    cmds:
+      - mkdir -p bin
+      - go build -ldflags="-X github.com/ashaju-godaddy/gdsnip/internal/cli/commands.Version={{.VERSION}} -X github.com/ashaju-godaddy/gdsnip/internal/cli/commands.BuildTime={{.DATE}}" -o ./bin/{{.BINARY_NAME}} ./cmd/cli
+      - echo "✓ CLI binary built at ./bin/{{.BINARY_NAME}}"
+    vars:
+      DATE:
+        sh: date +%Y-%m-%dT%H:%M:%S
+
+  build:api:
+    desc: Build API binary
+    cmds:
+      - mkdir -p bin
+      - go build -ldflags="-X main.version={{.VERSION}}" -o ./bin/{{.API_BINARY}} ./cmd/api
+      - echo "✓ API binary built at ./bin/{{.API_BINARY}}"
+
+  build:all:
+    desc: Build for all platforms
+    cmds:
+      - mkdir -p dist
+      - GOOS=linux GOARCH=amd64 go build -o ./dist/{{.BINARY_NAME}}-linux-amd64 ./cmd/cli
+      - GOOS=linux GOARCH=arm64 go build -o ./dist/{{.BINARY_NAME}}-linux-arm64 ./cmd/cli
+      - GOOS=darwin GOARCH=amd64 go build -o ./dist/{{.BINARY_NAME}}-darwin-amd64 ./cmd/cli
+      - GOOS=darwin GOARCH=arm64 go build -o ./dist/{{.BINARY_NAME}}-darwin-arm64 ./cmd/cli
+      - GOOS=windows GOARCH=amd64 go build -o ./dist/{{.BINARY_NAME}}-windows-amd64.exe ./cmd/cli
+      - echo "✓ Built binaries for all platforms in ./dist/"
+
+  # ==================== Database ====================
+
+  db:up:
+    desc: Start PostgreSQL container
+    cmds:
+      - docker-compose up -d postgres
+      - echo "✓ PostgreSQL started. Waiting for health check..."
+      - sleep 3
+
+  db:down:
+    desc: Stop all containers
+    cmds:
+      - docker-compose down
+      - echo "✓ Containers stopped"
+
+  db:migrate:
+    desc: Run database migrations up
+    cmds:
+      - |
+        migrate -path ./migrations -database "{{.DATABASE_URL}}" up || \
+        echo "Install golang-migrate: brew install golang-migrate (macOS) or see https://github.com/golang-migrate/migrate"
+      - echo "✓ Migrations applied"
+
+  db:migrate:down:
+    desc: Rollback last migration
+    cmds:
+      - migrate -path ./migrations -database "{{.DATABASE_URL}}" down 1
+      - echo "✓ Migration rolled back"
+
+  db:seed:
+    desc: Seed database with sample data
+    cmds:
+      - go run ./scripts/seed.go
+      - echo "✓ Database seeded with sample snippets"
+
+  db:reset:
+    desc: Reset database (down + up + migrate + seed)
+    cmds:
+      - task: db:migrate:down
+      - task: db:migrate
+      - task: db:seed
+      - echo "✓ Database reset complete"
+
+  db:psql:
+    desc: Connect to PostgreSQL with psql
+    cmds:
+      - psql "{{.DATABASE_URL}}"
+
+  # ==================== Testing ====================
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test ./... -v
+      - echo "✓ All tests passed"
+
+  test:unit:
+    desc: Run unit tests only
+    cmds:
+      - go test ./pkg/... ./internal/... -v -short
+      - echo "✓ Unit tests passed"
+
+  test:integration:
+    desc: Run integration tests (requires running DB)
+    deps: [db:up]
+    cmds:
+      - sleep 3
+      - go test ./tests/integration/... -v -tags=integration
+      - echo "✓ Integration tests passed"
+
+  test:cover:
+    desc: Run tests with coverage
+    cmds:
+      - go test -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out -o coverage.html
+      - >
+        echo "✓ Coverage report generated - coverage.html"
+
+  # ==================== Docker ====================
+
+  docker:build:
+    desc: Build Docker images
+    cmds:
+      - docker build -t gdsnip-api:{{.VERSION}} -f docker/Dockerfile.api .
+      - docker build -t gdsnip-cli:{{.VERSION}} -f docker/Dockerfile.cli .
+      - echo "✓ Docker images built"
+
+  docker:up:
+    desc: Start all services with Docker Compose
+    cmds:
+      - docker-compose up -d
+      - echo "✓ All services started"
+
+  docker:logs:
+    desc: View logs from all services
+    cmds:
+      - docker-compose logs -f
+
+  # ==================== Utilities ====================
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf bin/ dist/ coverage.out coverage.html
+      - echo "✓ Build artifacts cleaned"
+
+  lint:
+    desc: Run linter
+    cmds:
+      - |
+        golangci-lint run || \
+        echo "Install golangci-lint: brew install golangci-lint (macOS)"
+      - echo "✓ Linting complete"
+
+  fmt:
+    desc: Format code
+    cmds:
+      - go fmt ./...
+      - echo "✓ Code formatted"
+
+  tidy:
+    desc: Tidy go modules
+    cmds:
+      - go mod tidy
+      - echo "✓ Go modules tidied"
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+      - echo "✓ go vet passed"
+
+  # ==================== Setup ====================
+
+  setup:
+    desc: Full project setup (first-time setup)
+    cmds:
+      - echo "🚀 Setting up GDSNIP..."
+      - task: tidy
+      - task: db:up
+      - sleep 5
+      - task: db:migrate
+      - task: db:seed
+      - task: build
+      - echo "✅ Setup complete!"
+      - echo ""
+      - echo "Next steps:"
+      - >
+        echo "  1. Start API - task dev:api"
+      - >
+        echo "  2. Test CLI - ./bin/gdsnip auth register"
+
+  # ==================== Install ====================
+
+  install:
+    desc: Install CLI binary to /usr/local/bin
+    deps: [build:cli]
+    cmds:
+      - cp ./bin/{{.BINARY_NAME}} /usr/local/bin/
+      - echo "✓ CLI installed to /usr/local/bin/{{.BINARY_NAME}}"
+      - >
+        echo "Run - gdsnip --help"
+
+  uninstall:
+    desc: Uninstall CLI binary from /usr/local/bin
+    cmds:
+      - rm -f /usr/local/bin/{{.BINARY_NAME}}
+      - echo "✓ CLI uninstalled"
+
+  # ==================== CI ====================
+
+  ci:
+    desc: Run CI checks (lint + vet + test)
+    cmds:
+      - task: fmt
+      - task: vet
+      - task: lint
+      - task: test
+      - echo "✅ All CI checks passed"

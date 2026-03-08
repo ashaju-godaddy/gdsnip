@@ -1,0 +1,47 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+gdsnip
+gdsnip-api
+bin/
+dist/
+
+# Test binary
+*.test
+
+# Coverage
+coverage.out
+coverage.html
+
+# Dependency directories
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+*.env
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Credentials
+.gdsnip/credentials.json
+
+# Database
+*.db
+pgdata/

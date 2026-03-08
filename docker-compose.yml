@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: gdsnip-postgres
+    environment:
+      POSTGRES_USER: gdsnip
+      POSTGRES_PASSWORD: gdsnip
+      POSTGRES_DB: gdsnip
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gdsnip"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gdsnip-network
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: gdsnip-api
+    ports:
+      - "8080:8080"
+    environment:
+      GDSNIP_PORT: "8080"
+      GDSNIP_DATABASE_URL: postgres://gdsnip:gdsnip@postgres:5432/gdsnip?sslmode=disable
+      GDSNIP_JWT_SECRET: ${GDSNIP_JWT_SECRET:-change-this-in-production}
+      GDSNIP_JWT_EXPIRY: ${GDSNIP_JWT_EXPIRY:-168h}
+      GDSNIP_LOG_LEVEL: ${GDSNIP_LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gdsnip-network
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  gdsnip-network:
+    driver: bridge

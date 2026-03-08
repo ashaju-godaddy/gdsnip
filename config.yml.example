@@ -1,0 +1,9 @@
+# GDSNIP API Configuration
+# Copy this file to config.yml and adjust values as needed
+
+port: "8080"
+database_url: "postgres://gdsnip:gdsnip@localhost:5432/gdsnip?sslmode=disable"
+jwt_secret: "change-this-to-a-secure-random-string-in-production"
+jwt_expiry: "168h"  # 7 days
+max_body_size: "1MB"
+rate_limit: 100  # requests per minute
