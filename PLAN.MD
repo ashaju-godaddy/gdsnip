@@ -19,18 +19,15 @@
 
 ### MVP Remaining 📋
 - Seed data script (optional for demo/testing)
-- Basic integration testing (optional for Day 8)
+- Basic integration testing (optional)
 - Minor polish and bug fixes
 
-### Post-MVP (Deferred) 🔮
-- Update/Delete snippet endpoints
-- Teams functionality
-- Versioning system
-- Web UI
-- Analytics and trending
-- Forking
-- CI/CD pipelines
-- Cloud deployment
+### Post-MVP Priority Order 🚀
+1. **Teams & Basic RBAC** - Organization and collaboration
+2. **AI Snippet Generation** - Natural language to template
+3. **Multi-step Interactive TUI Wizards** - Complex snippet creation
+4. **Web UI** - Browser-based search and management
+5. **AI Chat with Snippet Indexing** - Conversational snippet discovery
 
 ---
 
@@ -50,8 +47,9 @@ The MVP focuses on the **core pull workflow**: a user can discover, pull, and pu
 - Update/delete snippets
 - Teams and team snippets
 - Snippet versioning
-- Namespace resolution by slug-only (e.g., `gdsnip pull docker-pg` without namespace)
+- Namespace resolution by slug-only
 - Web UI
+- AI features
 - Advanced rate limiting
 - Metrics/observability
 - CLI features: `--json` output, shell completion, config command
@@ -72,12 +70,6 @@ The MVP focuses on the **core pull workflow**: a user can discover, pull, and pu
 - ✅ Indexes for performance
 - ✅ Auto-update triggers for timestamps and search vectors
 
-**Key Files:**
-- `Taskfile.yml`
-- `docker-compose.yml`
-- `migrations/001_initial.up.sql`
-- `migrations/001_initial.down.sql`
-
 ---
 
 ### Phase 2: Shared Packages ✅
@@ -85,76 +77,22 @@ The MVP focuses on the **core pull workflow**: a user can discover, pull, and pu
 **Completed:**
 - ✅ `pkg/models/` - User, Snippet, APIError with structured error handling
 - ✅ `pkg/template/` - Template engine with extraction, validation, and rendering
-  - Supports `{{UPPERCASE}}` variable syntax
-  - Returns ALL missing variables (not just first)
-  - Applies defaults before provided values
-  - Warns about unused variables
 - ✅ `pkg/validator/` - Slug, username, email, password validation
 - ✅ **24 template engine tests** passing
 - ✅ **50+ validator tests** passing
-
-**Key Files:**
-- `pkg/models/user.go`, `snippet.go`, `errors.go`
-- `pkg/template/engine.go`, `engine_test.go`
-- `pkg/validator/slug.go`, `slug_test.go`
 
 ---
 
 ### Phase 3: API Server ✅
 
 **Completed:**
-
-#### Configuration & Database
-- ✅ Koanf-based config loading (file + environment variables)
+- ✅ Koanf-based config loading
 - ✅ Database connection with retry logic and pooling
 - ✅ Repository layer for users and snippets
-
-#### Service Layer (Business Logic)
-- ✅ `AuthService` - Registration, login, JWT generation/parsing
-- ✅ `SnippetService` - Create, get, pull, search, list
-  - Auto-slug generation
-  - Auto-variable extraction from templates
-  - Template rendering with validation
-  - Pull count tracking (background goroutine)
-  - Visibility enforcement (public/private)
-- ✅ **14 AuthService tests** passing
-- ✅ **18 SnippetService tests** passing (comprehensive coverage)
-
-#### HTTP Layer
+- ✅ `AuthService` and `SnippetService` with full test coverage
 - ✅ JWT authentication middleware
-- ✅ Rate limiting middleware (in-memory, 100 req/min default)
-- ✅ Thin handlers delegating to services
-- ✅ Structured error responses
-- ✅ Server with graceful shutdown
-
-#### API Endpoints
-```
-Health:
-  GET  /health
-
-Auth:
-  POST /v1/auth/register
-  POST /v1/auth/login
-  GET  /v1/auth/me (protected)
-
-Snippets:
-  POST /v1/snippets (protected)                   # Create
-  GET  /v1/snippets/:namespace/:slug              # Get details
-  POST /v1/snippets/:namespace/:slug/pull         # Pull/render
-  GET  /v1/snippets?q=query&tags=tag              # Search
-  GET  /v1/users/me/snippets (protected)          # List mine
-```
-
-**Tested with curl** - All endpoints working correctly ✅
-
-**Key Files:**
-- `internal/api/config/config.go`
-- `internal/api/repository/db.go`, `user.go`, `snippet.go`
-- `internal/api/service/auth.go`, `snippet.go`
-- `internal/api/middleware/auth.go`, `ratelimit.go`
-- `internal/api/handlers/auth.go`, `snippets.go`, `response.go`
-- `internal/api/server/server.go`
-- `cmd/api/main.go`
+- ✅ Rate limiting middleware
+- ✅ All core endpoints implemented and tested
 
 ---
 
@@ -166,334 +104,1225 @@ Snippets:
 - ✅ Full API client with all endpoints
 - ✅ Error handling and APIError parsing
 
-**Key Files:**
-- `internal/cli/config/config.go`, `credentials.go`
-- `internal/cli/api/client.go`
-
-**Credentials Security:**
-- Stored in `~/.gdsnip/credentials.json`
-- Directory: 0700 permissions
-- File: 0600 permissions (owner read/write only)
-
 ---
 
-## Completed Work (Days 1-7)
+### Phase 5: CLI Commands ✅
 
-### Phase 5: CLI Commands ✅ (Days 6-7)
+**Completed:**
+- ✅ TUI components (styles, prompts, spinner)
+- ✅ Auth commands (register, login, logout, status)
+- ✅ Discovery commands (search, list, info)
+- ✅ Push command with auto-variable extraction
+- ✅ Pull command with interactive prompts
 
-#### TUI Components ✅
-- [x] `internal/cli/tui/styles.go` - Lipgloss color palette and reusable styles
-- [x] `internal/cli/tui/prompt.go` - Variable prompts with password mode
-- [x] `internal/cli/tui/spinner.go` - Animated spinner for operations
-
-#### Root Command ✅
-- [x] `internal/cli/commands/root.go` - Cobra root with version injection
-- [x] `cmd/cli/main.go` - Entry point
-
-#### Auth Commands ✅
-- [x] `internal/cli/commands/auth.go`:
-  - `auth register` - Create account, save credentials
-  - `auth login` - Authenticate, save credentials with hidden password input
-  - `auth logout` - Clear credentials
-  - `auth status` - Show current user or helpful "not logged in" message
-
-#### Discovery Commands ✅
-- [x] `internal/cli/commands/search.go` - Search with query and tags, styled output
-- [x] `internal/cli/commands/list.go` - List user's snippets with visibility indicators
-- [x] `internal/cli/commands/info.go` - Show snippet details with variables table and usage examples
-
-#### Core Commands ✅
-- [x] `internal/cli/commands/pull.go` ⭐ **Most critical - COMPLETED**:
-  - Parse `namespace/slug` from args
-  - **Custom variable flag parsing** (pre-Cobra for `--UPPERCASE=value`)
-  - Load `--var-file` if provided
-  - Call API to pull snippet
-  - **Interactive prompts** for missing variables with auto-password detection
-  - Display rendered content in styled box
-  - Save to file with `-o` or prompt user
-  - Handle warnings from template engine
-
-- [x] `internal/cli/commands/push.go`:
-  - Read template file with `-f` flag
-  - Auto-extract variables
-  - Display found variables with confirmation
-  - Auto-generate slug if not provided
-  - Create snippet via API
-  - Show success with pull command example
+---
 
 ### Phase 6: README Documentation ✅
 
-- [x] Comprehensive quickstart guide (5 minute setup)
-- [x] Detailed command reference with examples
-- [x] Template syntax documentation
-- [x] Configuration guide (API + CLI)
-- [x] Example templates (Docker, K8s, GitHub Actions, Nginx)
-- [x] Troubleshooting section
-- [x] Architecture overview
-- [x] Development guide with Task commands
-- [x] Roadmap with completed/remaining features
+**Completed:**
+- ✅ Comprehensive quickstart guide
+- ✅ Command reference with examples
+- ✅ Template syntax documentation
+- ✅ Configuration and troubleshooting guides
 
 ---
 
-## MVP Remaining Work (Optional Polish)
+## MVP Remaining Work
 
-### Phase 7: Seed Data (Optional)
+### Phase 7: Seed Data & Polish
 
-#### Seed Script
-- [ ] `scripts/seed.go` - Create demo user + 10+ realistic snippets:
-  - Docker Compose templates (postgres, redis, full-stack)
-  - Kubernetes manifests (deployment, service)
-  - CI/CD configs (GitHub Actions, GitLab CI)
-  - Dockerfiles (multi-stage for Go, Node)
-  - Config files (nginx, .env template)
-
-**Note**: Seed data is optional for MVP. The CLI and API are fully functional without it.
-
-### Phase 8: Testing & Polish (Optional)
-
-#### Testing
-- [ ] Basic CLI integration tests (optional)
-- [ ] Manual test checklist execution
-
-#### Minor Enhancements
-- [ ] Add `.gitignore` entries for build artifacts
-- [ ] Add LICENSE file
-- [ ] Final bug fixes and polish
+- [ ] `scripts/seed.go` - Create demo user + 10+ realistic snippets
+- [ ] Basic integration testing
+- [ ] Final bug fixes
 
 ---
 
-## Post-MVP Features (Deferred)
+## Post-MVP Implementation Plan
 
-### Near-Term Enhancements
-- [ ] Update snippet endpoint (`PUT /v1/snippets/:id`)
-- [ ] Delete snippet endpoint (`DELETE /v1/snippets/:id`)
-- [ ] CLI update/delete commands
-- [ ] `--json` flag for scriptable output
-- [ ] Shell completion generation
-- [ ] Namespace resolution by slug-only (`gdsnip pull slug` → auto-resolve)
+### Phase 8: Teams & Basic RBAC
 
-### Mid-Term Features
-- [ ] **Teams**:
-  - Migration: `teams`, `team_members` tables
-  - API: Team CRUD, membership management
-  - CLI: `gdsnip teams` commands
-  - Team snippets with `team` visibility
+#### 8.1 Database Schema
 
-- [ ] **Versioning**:
-  - Migration: `snippet_versions` table
-  - API: Version history, get specific version
-  - CLI: `--version` flag for pull
-  - Show version history in info
+- [ ] Create migration `002_teams.up.sql`:
 
-- [ ] **Web UI**:
-  - React/Next.js frontend
-  - Pages: Search, snippet detail, user profile, auth
-  - Deploy as static site
+```sql
+-- Teams table
+CREATE TABLE teams (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            VARCHAR(100) NOT NULL,
+    slug            VARCHAR(100) UNIQUE NOT NULL,
+    description     TEXT,
+    created_by      UUID REFERENCES users(id) NOT NULL,
+    created_at      TIMESTAMP DEFAULT NOW(),
+    updated_at      TIMESTAMP DEFAULT NOW()
+);
 
-### Long-Term Features
-- [ ] **Analytics**: Track pulls, trending snippets
-- [ ] **Forking**: Copy snippets to own namespace
-- [ ] **Advanced Rate Limiting**: Redis-backed, per-user quotas
-- [ ] **Metrics/Observability**: Prometheus, structured logging
-- [ ] **CI/CD**: GitHub Actions workflows for test/build/release
-- [ ] **Cloud Deployment**: Docker images, deployment guides
+-- Team memberships with roles
+CREATE TABLE team_members (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    team_id         UUID REFERENCES teams(id) ON DELETE CASCADE,
+    user_id         UUID REFERENCES users(id) ON DELETE CASCADE,
+    role            VARCHAR(20) NOT NULL DEFAULT 'member',
+    -- Roles: 'owner', 'admin', 'member', 'viewer'
+    created_at      TIMESTAMP DEFAULT NOW(),
+    UNIQUE(team_id, user_id)
+);
 
----
+-- Add team ownership to snippets
+ALTER TABLE snippets ADD COLUMN team_id UUID REFERENCES teams(id) ON DELETE CASCADE;
 
-## Technical Implementation Notes
+-- Update visibility enum concept
+-- visibility: 'public', 'private', 'team'
 
-### Template Engine Pattern
-- Variables MUST be `{{UPPERCASE}}` (regex: `\{\{([A-Z][A-Z0-9_]*)\}\}`)
-- Validation returns ALL missing variables (not just first)
-- Rendering applies defaults before provided values
-- Warns about unused variables
-
-### Service Layer Pattern
-- **Handlers are thin** - they parse requests and call services
-- **Business logic lives in services** - all validation, transformation, orchestration
-- **Repositories are pure data access** - no business logic
-
-### Authentication Flow
-- Stateless JWT (no server-side sessions)
-- CLI stores credentials in `~/.gdsnip/credentials.json` (0600)
-- API validates JWT via middleware, sets `user_id` in context
-
-### Custom Variable Flag Parsing (CLI)
-The pull command accepts dynamic flags like `--DB_PASSWORD=secret`. These are:
-1. Parsed from `os.Args` BEFORE Cobra processes flags
-2. Extracted into `map[string]string`
-3. Removed from args so Cobra doesn't reject them as unknown
-4. Critical for UX - allows natural `gdsnip pull ns/slug --VAR=value` syntax
-
-### Database Features
-- **Full-text search**: `tsvector` with auto-update triggers
-- **JSONB storage**: Variables stored as JSON for flexibility
-- **Indexes**: Covering slug, namespace, owner, visibility, tags, search
-- **Auto-timestamps**: Triggers update `updated_at` on every change
-
----
-
-## Dependencies
-
-### Core
-```
-github.com/labstack/echo/v4           # HTTP framework
-github.com/jmoiron/sqlx               # SQL extensions
-github.com/lib/pq                     # PostgreSQL driver
-github.com/golang-jwt/jwt/v5          # JWT
-github.com/knadh/koanf/v2             # Configuration
-golang.org/x/crypto                   # bcrypt
-github.com/google/uuid                # UUID generation
+-- Indexes
+CREATE INDEX idx_teams_slug ON teams(slug);
+CREATE INDEX idx_teams_created_by ON teams(created_by);
+CREATE INDEX idx_team_members_team ON team_members(team_id);
+CREATE INDEX idx_team_members_user ON team_members(user_id);
+CREATE INDEX idx_snippets_team ON snippets(team_id);
 ```
 
-### CLI
-```
-github.com/spf13/cobra                # CLI framework
-github.com/charmbracelet/bubbletea    # TUI framework
-github.com/charmbracelet/bubbles      # TUI components
-github.com/charmbracelet/lipgloss     # TUI styling
-golang.org/x/term                     # Terminal control (password input)
-```
+- [ ] Create migration `002_teams.down.sql`
 
-### Testing
-```
-github.com/stretchr/testify           # Assertions
-```
+#### 8.2 RBAC Permission Model
 
----
+Define permission levels:
 
-## MVP Definition of Done
+```go
+// pkg/models/team.go
 
-The MVP is complete when:
+type TeamRole string
 
-1. ✅ **API Server**: All endpoints working, tested with curl
-2. ✅ **Service Tests**: Auth + Snippet services fully tested
-3. ✅ **CLI Auth**: Can register, login, logout, check status
-4. ✅ **CLI Search**: Can search public snippets by query/tags
-5. ✅ **CLI Pull**: Can pull snippets, prompted for missing variables, saves to file
-6. ✅ **CLI Push**: Can push templates with auto-variable extraction
-7. ✅ **CLI List**: Can list own snippets
-8. ✅ **CLI Info**: Can view snippet details
-9. ⚠️ **Seed Data**: 10+ realistic snippets available (OPTIONAL - MVP functional without it)
-10. ✅ **End-to-End Test**: Can complete full user journey:
-    ```bash
-    gdsnip auth register          # ✅ Working
-    gdsnip search docker          # ✅ Working
-    gdsnip info demo/docker-pg    # ✅ Working
-    gdsnip pull demo/docker-pg --DB_PASSWORD=test -o output.yml  # ✅ Working
-    gdsnip push -f mytemplate.yml -n "test" --public             # ✅ Working
-    gdsnip list                   # ✅ Working
-    gdsnip auth logout            # ✅ Working
-    ```
-11. ✅ **README**: Comprehensive quickstart guide with examples
+const (
+    RoleOwner  TeamRole = "owner"   // Full control, can delete team
+    RoleAdmin  TeamRole = "admin"   // Manage members, manage all snippets
+    RoleMember TeamRole = "member"  // Create/edit own snippets, pull team snippets
+    RoleViewer TeamRole = "viewer"  // Pull team snippets only
+)
 
-**MVP STATUS: ✅ COMPLETE** (Seed data optional for demo/testing purposes)
+type Permission string
 
----
+const (
+    PermViewTeam       Permission = "team:view"
+    PermManageTeam     Permission = "team:manage"
+    PermDeleteTeam     Permission = "team:delete"
+    PermManageMembers  Permission = "team:members:manage"
+    PermCreateSnippet  Permission = "snippet:create"
+    PermEditAnySnippet Permission = "snippet:edit:any"
+    PermEditOwnSnippet Permission = "snippet:edit:own"
+    PermDeleteSnippet  Permission = "snippet:delete"
+    PermPullSnippet    Permission = "snippet:pull"
+)
 
-## File Checklist
+// RolePermissions maps roles to their permissions
+var RolePermissions = map[TeamRole][]Permission{
+    RoleOwner: {
+        PermViewTeam, PermManageTeam, PermDeleteTeam,
+        PermManageMembers, PermCreateSnippet, PermEditAnySnippet,
+        PermDeleteSnippet, PermPullSnippet,
+    },
+    RoleAdmin: {
+        PermViewTeam, PermManageTeam, PermManageMembers,
+        PermCreateSnippet, PermEditAnySnippet, PermDeleteSnippet,
+        PermPullSnippet,
+    },
+    RoleMember: {
+        PermViewTeam, PermCreateSnippet, PermEditOwnSnippet,
+        PermPullSnippet,
+    },
+    RoleViewer: {
+        PermViewTeam, PermPullSnippet,
+    },
+}
 
-### Must Have (MVP)
-
-#### Shared Packages
-- [x] `pkg/models/user.go`
-- [x] `pkg/models/snippet.go`
-- [x] `pkg/models/errors.go`
-- [x] `pkg/template/engine.go`
-- [x] `pkg/template/engine_test.go`
-- [x] `pkg/validator/slug.go`
-- [x] `pkg/validator/slug_test.go`
-
-#### API
-- [x] `cmd/api/main.go`
-- [x] `internal/api/config/config.go`
-- [x] `internal/api/repository/db.go`
-- [x] `internal/api/repository/user.go`
-- [x] `internal/api/repository/snippet.go`
-- [x] `internal/api/service/auth.go`
-- [x] `internal/api/service/snippet.go`
-- [x] `internal/api/service/auth_test.go`
-- [x] `internal/api/service/snippet_test.go`
-- [x] `internal/api/middleware/auth.go`
-- [x] `internal/api/middleware/ratelimit.go`
-- [x] `internal/api/handlers/response.go`
-- [x] `internal/api/handlers/auth.go`
-- [x] `internal/api/handlers/snippets.go`
-- [x] `internal/api/server/server.go`
-
-#### CLI
-- [x] `internal/cli/config/config.go`
-- [x] `internal/cli/config/credentials.go`
-- [x] `internal/cli/api/client.go`
-- [x] `internal/cli/tui/styles.go`
-- [x] `internal/cli/tui/prompt.go`
-- [x] `internal/cli/tui/spinner.go`
-- [x] `internal/cli/commands/root.go`
-- [x] `internal/cli/commands/auth.go`
-- [x] `internal/cli/commands/pull.go` ⭐
-- [x] `internal/cli/commands/push.go`
-- [x] `internal/cli/commands/search.go`
-- [x] `internal/cli/commands/list.go`
-- [x] `internal/cli/commands/info.go`
-- [x] `cmd/cli/main.go`
-- [x] `README.md` (comprehensive quickstart guide)
-
-#### Infrastructure
-- [x] `migrations/001_initial.up.sql`
-- [x] `migrations/001_initial.down.sql`
-- [ ] `scripts/seed.go`
-- [x] `Taskfile.yml`
-- [x] `docker-compose.yml`
-
-### Post-MVP
-
-```
-internal/api/handlers/snippets.go      # Update/Delete endpoints
-tests/integration/setup_test.go        # Integration test framework
-tests/integration/auth_test.go
-tests/integration/snippets_test.go
-docs/CLI.md                            # Full command reference
-docs/API.md                            # API documentation
-.github/workflows/ci.yml               # CI pipeline
-.github/workflows/release.yml          # Release automation
-docker/Dockerfile.api                  # Docker images
-docker/Dockerfile.cli
+func (r TeamRole) HasPermission(p Permission) bool {
+    for _, perm := range RolePermissions[r] {
+        if perm == p {
+            return true
+        }
+    }
+    return false
+}
 ```
 
----
+#### 8.3 Models
 
-## Quick Commands Reference
+- [ ] Create `pkg/models/team.go`:
+
+```go
+type Team struct {
+    ID          string    `json:"id" db:"id"`
+    Name        string    `json:"name" db:"name"`
+    Slug        string    `json:"slug" db:"slug"`
+    Description string    `json:"description" db:"description"`
+    CreatedBy   string    `json:"created_by" db:"created_by"`
+    CreatedAt   time.Time `json:"created_at" db:"created_at"`
+    UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+    
+    // Populated on fetch
+    MemberCount int       `json:"member_count,omitempty" db:"member_count"`
+    Role        TeamRole  `json:"role,omitempty" db:"role"` // Current user's role
+}
+
+type TeamMember struct {
+    ID        string    `json:"id" db:"id"`
+    TeamID    string    `json:"team_id" db:"team_id"`
+    UserID    string    `json:"user_id" db:"user_id"`
+    Role      TeamRole  `json:"role" db:"role"`
+    CreatedAt time.Time `json:"created_at" db:"created_at"`
+    
+    // Populated via JOIN
+    Username  string    `json:"username,omitempty" db:"username"`
+    Email     string    `json:"email,omitempty" db:"email"`
+}
+
+type CreateTeamRequest struct {
+    Name        string `json:"name" validate:"required,min=2,max=100"`
+    Slug        string `json:"slug" validate:"omitempty,slug"`
+    Description string `json:"description" validate:"max=500"`
+}
+
+type AddMemberRequest struct {
+    Username string   `json:"username" validate:"required"`
+    Role     TeamRole `json:"role" validate:"required,oneof=admin member viewer"`
+}
+```
+
+#### 8.4 Repository Layer
+
+- [ ] Create `internal/api/repository/team.go`:
+  - `Create(team *Team) error`
+  - `GetByID(id string) (*Team, error)`
+  - `GetBySlug(slug string) (*Team, error)`
+  - `Update(team *Team) error`
+  - `Delete(id string) error`
+  - `ListByUser(userID string) ([]Team, error)`
+  - `AddMember(teamID, userID string, role TeamRole) error`
+  - `RemoveMember(teamID, userID string) error`
+  - `UpdateMemberRole(teamID, userID string, role TeamRole) error`
+  - `GetMember(teamID, userID string) (*TeamMember, error)`
+  - `ListMembers(teamID string) ([]TeamMember, error)`
+  - `GetUserRole(teamID, userID string) (TeamRole, error)`
+
+#### 8.5 Service Layer
+
+- [ ] Create `internal/api/service/team.go`:
+  - `CreateTeam(userID string, req CreateTeamRequest) (*Team, error)`
+    - Auto-generate slug if not provided
+    - Creator becomes owner
+  - `GetTeam(userID, teamSlug string) (*Team, error)`
+    - Verify user is member
+  - `UpdateTeam(userID, teamSlug string, req UpdateTeamRequest) (*Team, error)`
+    - Check `PermManageTeam`
+  - `DeleteTeam(userID, teamSlug string) error`
+    - Check `PermDeleteTeam` (owner only)
+  - `ListUserTeams(userID string) ([]Team, error)`
+  - `AddMember(userID, teamSlug string, req AddMemberRequest) (*TeamMember, error)`
+    - Check `PermManageMembers`
+    - Cannot add owner role via API
+  - `RemoveMember(userID, teamSlug, targetUsername string) error`
+    - Check `PermManageMembers`
+    - Owner cannot be removed
+  - `UpdateMemberRole(userID, teamSlug, targetUsername string, role TeamRole) error`
+    - Check `PermManageMembers`
+    - Cannot change owner
+  - `LeaveTeam(userID, teamSlug string) error`
+    - Owner cannot leave (must transfer or delete)
+
+- [ ] Update `internal/api/service/snippet.go`:
+  - Add `teamSlug` parameter to `Create`
+  - Add permission checks for team snippets
+  - Update `Search` to include team snippets user can access
+  - Update `ListByUser` to support `--team` filter
+
+#### 8.6 API Handlers
+
+- [ ] Create `internal/api/handlers/teams.go`:
+
+```go
+// Team CRUD
+POST   /v1/teams                           // Create team
+GET    /v1/teams                           // List my teams
+GET    /v1/teams/:slug                     // Get team details
+PUT    /v1/teams/:slug                     // Update team
+DELETE /v1/teams/:slug                     // Delete team
+
+// Team membership
+GET    /v1/teams/:slug/members             // List members
+POST   /v1/teams/:slug/members             // Add member
+PUT    /v1/teams/:slug/members/:username   // Update role
+DELETE /v1/teams/:slug/members/:username   // Remove member
+POST   /v1/teams/:slug/leave               // Leave team
+
+// Team snippets
+GET    /v1/teams/:slug/snippets            // List team snippets
+```
+
+- [ ] Update snippet handlers:
+  - `POST /v1/snippets` accepts optional `team_slug` field
+  - Team snippets use `team` visibility by default
+
+#### 8.7 CLI Commands
+
+- [ ] Create `internal/cli/commands/teams.go`:
 
 ```bash
-# Development
-task db:up                  # Start PostgreSQL
-task db:migrate             # Run migrations
-task db:seed                # Populate seed data (TODO)
-task dev:api                # Run API server
-task test                   # Run all tests
+# Team management
+gdsnip teams create <name> [--slug=<slug>] [--description=<desc>]
+gdsnip teams list
+gdsnip teams info <slug>
+gdsnip teams delete <slug>
 
-# Build
-task build:cli              # Build CLI binary
-task build:api              # Build API server
+# Membership
+gdsnip teams members <slug>
+gdsnip teams add <slug> <username> [--role=member]
+gdsnip teams remove <slug> <username>
+gdsnip teams role <slug> <username> <role>
+gdsnip teams leave <slug>
+```
 
-# Database
-task db:reset               # Full reset: down → up → migrate → seed
-task db:psql                # Connect to database
+- [ ] Update `internal/cli/commands/push.go`:
+  - Add `--team` flag to push snippet to team namespace
+  - Example: `gdsnip push -f template.yml -n "shared config" --team platform`
 
-# Testing
-task test:unit              # Unit tests only
-task test:integration       # Integration tests (requires DB)
+- [ ] Update `internal/cli/commands/search.go`:
+  - Add `--team` flag to search within team
+  - Show team snippets user has access to
+
+- [ ] Update `internal/cli/commands/list.go`:
+  - Add `--team` flag to list team's snippets
+
+#### 8.8 Testing
+
+- [ ] Unit tests for RBAC permission logic
+- [ ] Service tests for team operations
+- [ ] Integration tests for team workflows:
+  - Create team → add members → create snippet → verify access
+  - Permission denied scenarios
+
+**Acceptance Criteria:**
+- [ ] User can create a team and becomes owner
+- [ ] Owner can add/remove members with roles
+- [ ] Members can create team snippets
+- [ ] Viewers can only pull, not create
+- [ ] Team snippets appear in search for members
+- [ ] Non-members cannot access team snippets
+
+---
+
+### Phase 9: AI Snippet Generation
+
+#### 9.1 AI Service Layer
+
+- [ ] Create `internal/ai/client.go`:
+
+```go
+type Client struct {
+    apiKey   string
+    model    string
+    baseURL  string
+    http     *http.Client
+}
+
+type GenerateRequest struct {
+    Description string   `json:"description"`
+    Tags        []string `json:"tags,omitempty"`
+    Format      string   `json:"format,omitempty"` // yaml, json, toml, dockerfile, etc.
+}
+
+type GenerateResult struct {
+    Content          string   `json:"content"`
+    SuggestedName    string   `json:"suggested_name"`
+    SuggestedSlug    string   `json:"suggested_slug"`
+    SuggestedDesc    string   `json:"suggested_description"`
+    SuggestedTags    []string `json:"suggested_tags"`
+    ExtractedVars    []string `json:"extracted_variables"`
+    Confidence       float64  `json:"confidence"` // 0-1
+}
+
+func NewClient(apiKey string) *Client
+func (c *Client) GenerateSnippet(ctx context.Context, req GenerateRequest) (*GenerateResult, error)
+```
+
+- [ ] Create `internal/ai/prompts.go`:
+
+```go
+const SystemPrompt = `You are a configuration template generator. Generate templates with these rules:
+
+1. Use {{UPPERCASE_VARIABLE}} syntax for ALL configurable values
+2. Variables must be uppercase with underscores only
+3. Include sensible inline comments
+4. Follow best practices for the technology
+5. Use common variable names:
+   - Ports: PORT, HTTP_PORT, HTTPS_PORT
+   - Database: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+   - App: APP_NAME, APP_ENV, APP_VERSION
+   - Secrets: *_SECRET, *_KEY, *_TOKEN, *_PASSWORD
+
+Output JSON with:
+{
+  "content": "the template content",
+  "suggested_name": "Human readable name",
+  "suggested_slug": "kebab-case-slug",
+  "suggested_description": "Brief description",
+  "suggested_tags": ["tag1", "tag2"]
+}`
+
+func BuildGeneratePrompt(req GenerateRequest) string {
+    return fmt.Sprintf(`Generate a configuration template for:
+%s
+
+%s%s`,
+        req.Description,
+        formatHint(req.Format),
+        tagHint(req.Tags),
+    )
+}
+```
+
+#### 9.2 API Endpoint
+
+- [ ] Create `internal/api/handlers/ai.go`:
+
+```go
+// POST /v1/ai/generate
+type GenerateRequest struct {
+    Description string   `json:"description" validate:"required,min=10,max=1000"`
+    Tags        []string `json:"tags" validate:"max=10"`
+    Format      string   `json:"format" validate:"omitempty,oneof=yaml json toml dockerfile nginx"`
+}
+
+func (h *AIHandler) Generate(c echo.Context) error {
+    // Rate limit AI requests more strictly (e.g., 10/hour)
+    // Call AI service
+    // Return generated snippet (not saved yet)
+}
+```
+
+- [ ] Add rate limiting specifically for AI endpoints (stricter limits)
+
+#### 9.3 CLI Command
+
+- [ ] Create `internal/cli/commands/generate.go`:
+
+```go
+var generateCmd = &cobra.Command{
+    Use:   "generate <description>",
+    Short: "Generate a snippet using AI",
+    Long: `Generate a configuration template from natural language description.
+
+The AI will create a template with appropriate variables that you can
+review, edit, and save to your snippets.`,
+    Example: `  # Generate a Docker Compose for PostgreSQL
+  gdsnip generate "docker compose for postgres with persistent storage"
+
+  # Generate with specific format
+  gdsnip generate "kubernetes deployment for node.js app" --format=yaml
+
+  # Generate with suggested tags
+  gdsnip generate "nginx reverse proxy with SSL" --tags=nginx,proxy,ssl`,
+    Args: cobra.MinimumNArgs(1),
+    Run:  runGenerate,
+}
+
+func init() {
+    generateCmd.Flags().StringP("format", "f", "", "Output format hint (yaml, json, dockerfile, etc.)")
+    generateCmd.Flags().StringSliceP("tags", "t", nil, "Suggested tags")
+    generateCmd.Flags().Bool("save", false, "Save directly without preview")
+}
+```
+
+- [ ] Create `internal/cli/tui/generate.go` - Generation flow TUI:
+
+```go
+// Step 1: Show spinner during generation
+// Step 2: Display generated content in preview box
+// Step 3: Show extracted variables
+// Step 4: Confirm or edit before saving
+// Step 5: Prompt for name/visibility if saving
+
+type generateModel struct {
+    state       generateState
+    spinner     spinner.Model
+    content     string
+    variables   []string
+    suggestions GenerateSuggestions
+    editMode    bool
+    textarea    textarea.Model
+}
+
+type generateState int
+
+const (
+    stateGenerating generateState = iota
+    statePreview
+    stateEditing
+    stateMetadata
+    stateSaving
+    stateDone
+)
+```
+
+#### 9.4 TUI Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  🤖 AI Snippet Generator                                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ⠋ Generating template...                                   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+        ↓ After generation ↓
+
+┌─────────────────────────────────────────────────────────────┐
+│  🤖 Generated Snippet                                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  version: "3.8"                                             │
+│  services:                                                  │
+│    postgres:                                                │
+│      image: postgres:{{PG_VERSION}}                         │
+│      environment:                                           │
+│        POSTGRES_DB: {{DB_NAME}}                             │
+│        POSTGRES_PASSWORD: {{DB_PASSWORD}}                   │
+│      ...                                                    │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  Variables: PG_VERSION, DB_NAME, DB_PASSWORD, DB_USER, PORT │
+├─────────────────────────────────────────────────────────────┤
+│  Suggested: "Docker PostgreSQL" • docker, postgres          │
+├─────────────────────────────────────────────────────────────┤
+│  [s] Save  [e] Edit  [r] Regenerate  [q] Quit               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 9.5 Configuration
+
+- [ ] Add AI configuration to `internal/api/config/config.go`:
+
+```go
+type AIConfig struct {
+    Enabled     bool   `koanf:"enabled"`
+    Provider    string `koanf:"provider"` // openai, anthropic
+    APIKey      string `koanf:"api_key"`
+    Model       string `koanf:"model"`    // gpt-4, claude-3-sonnet
+    MaxTokens   int    `koanf:"max_tokens"`
+    RateLimit   int    `koanf:"rate_limit"` // requests per hour per user
+}
+```
+
+- [ ] Add CLI AI configuration to `internal/cli/config/config.go`:
+
+```go
+type Config struct {
+    APIURL      string `koanf:"api_url"`
+    AIEnabled   bool   `koanf:"ai_enabled"`
+}
+```
+
+#### 9.6 Testing
+
+- [ ] Mock AI client for testing
+- [ ] Test prompt generation
+- [ ] Test response parsing
+- [ ] Test error handling (rate limits, API errors)
+- [ ] Integration test with real API (manual/optional)
+
+**Acceptance Criteria:**
+- [ ] `gdsnip generate "description"` calls AI and shows preview
+- [ ] User can edit generated content before saving
+- [ ] User can save directly with `--save` flag
+- [ ] Rate limiting prevents abuse
+- [ ] Graceful error handling for API failures
+
+---
+
+### Phase 10: Multi-Step Interactive TUI Wizards
+
+#### 10.1 Wizard Framework
+
+- [ ] Create `internal/cli/tui/wizard/wizard.go`:
+
+```go
+// Generic multi-step wizard framework
+
+type Step interface {
+    Title() string
+    Description() string
+    View() string
+    Update(msg tea.Msg) (Step, tea.Cmd)
+    Validate() error
+    Value() interface{}
+}
+
+type Wizard struct {
+    steps       []Step
+    currentStep int
+    title       string
+    completed   bool
+    cancelled   bool
+}
+
+func New(title string, steps ...Step) *Wizard
+func (w *Wizard) Init() tea.Cmd
+func (w *Wizard) Update(msg tea.Msg) (tea.Model, tea.Cmd)
+func (w *Wizard) View() string
+func (w *Wizard) Run() (map[string]interface{}, error)
+```
+
+- [ ] Create common step types in `internal/cli/tui/wizard/steps.go`:
+
+```go
+// TextInputStep - single line text input
+type TextInputStep struct {
+    label       string
+    placeholder string
+    required    bool
+    validate    func(string) error
+    value       string
+}
+
+// PasswordStep - hidden input
+type PasswordStep struct {
+    label    string
+    required bool
+    value    string
+}
+
+// SelectStep - single selection from options
+type SelectStep struct {
+    label    string
+    options  []string
+    selected int
+}
+
+// MultiSelectStep - multiple selection
+type MultiSelectStep struct {
+    label    string
+    options  []string
+    selected map[int]bool
+}
+
+// ConfirmStep - yes/no confirmation
+type ConfirmStep struct {
+    label    string
+    value    bool
+}
+
+// TextAreaStep - multi-line input
+type TextAreaStep struct {
+    label       string
+    placeholder string
+    value       string
+}
+```
+
+#### 10.2 Snippet Creation Wizard
+
+- [ ] Create `internal/cli/tui/wizard/create_snippet.go`:
+
+```go
+func NewCreateSnippetWizard() *Wizard {
+    return New("Create New Snippet",
+        // Step 1: Basic info
+        &TextInputStep{
+            label:       "Snippet Name",
+            placeholder: "e.g., Docker PostgreSQL",
+            required:    true,
+        },
+        &TextAreaStep{
+            label:       "Description",
+            placeholder: "Brief description of what this template does",
+        },
+        
+        // Step 2: Template content
+        &TextAreaStep{
+            label:       "Template Content",
+            placeholder: "Paste your template here...",
+            required:    true,
+        },
+        
+        // Step 3: Variables (auto-detected, allow editing)
+        &VariableConfigStep{
+            // Shows detected variables
+            // Allows marking required/optional
+            // Allows setting defaults
+        },
+        
+        // Step 4: Metadata
+        &MultiSelectStep{
+            label:   "Tags",
+            options: commonTags, // docker, kubernetes, etc.
+        },
+        &SelectStep{
+            label:   "Visibility",
+            options: []string{"public", "private", "team"},
+        },
+        
+        // Step 5: Confirmation
+        &ConfirmStep{
+            label: "Create this snippet?",
+        },
+    )
+}
+```
+
+- [ ] Add command `gdsnip create` (alias for wizard):
+
+```go
+var createCmd = &cobra.Command{
+    Use:   "create",
+    Short: "Create a snippet using interactive wizard",
+    Run: func(cmd *cobra.Command, args []string) {
+        wizard := wizard.NewCreateSnippetWizard()
+        result, err := wizard.Run()
+        if err != nil {
+            // Handle cancel or error
+        }
+        // Create snippet via API
+    },
+}
+```
+
+#### 10.3 Pull Wizard (Complex Snippets)
+
+- [ ] Create `internal/cli/tui/wizard/pull.go`:
+
+For snippets with many variables, offer a wizard mode:
+
+```go
+func NewPullWizard(snippet *models.Snippet) *Wizard {
+    steps := make([]Step, 0)
+    
+    // Group variables by category (if we add categories)
+    // Or just present them in a nice paginated way
+    
+    for _, v := range snippet.Variables {
+        if v.Sensitive {
+            steps = append(steps, &PasswordStep{
+                label:    fmt.Sprintf("%s - %s", v.Name, v.Description),
+                required: v.Required,
+            })
+        } else {
+            steps = append(steps, &TextInputStep{
+                label:       fmt.Sprintf("%s - %s", v.Name, v.Description),
+                placeholder: v.Default,
+                required:    v.Required,
+            })
+        }
+    }
+    
+    return New(fmt.Sprintf("Pull: %s", snippet.FullPath()), steps...)
+}
+```
+
+- [ ] Add `--wizard` flag to pull command:
+
+```bash
+gdsnip pull demo/complex-snippet --wizard
+```
+
+#### 10.4 Team Setup Wizard
+
+- [ ] Create `internal/cli/tui/wizard/create_team.go`:
+
+```go
+func NewCreateTeamWizard() *Wizard {
+    return New("Create New Team",
+        &TextInputStep{
+            label:    "Team Name",
+            required: true,
+        },
+        &TextInputStep{
+            label:       "Slug",
+            placeholder: "auto-generated from name",
+        },
+        &TextAreaStep{
+            label: "Description",
+        },
+        &ConfirmStep{
+            label: "Create this team?",
+        },
+    )
+}
+```
+
+#### 10.5 Visual Design
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Create New Snippet                            Step 1 of 5  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Snippet Name *                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Docker PostgreSQL█                                   │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  A short, descriptive name for your snippet                │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  [←] Back    [Enter] Next    [Esc] Cancel                   │
+│                                                             │
+│  ○ ○ ○ ○ ○                                                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Acceptance Criteria:**
+- [ ] `gdsnip create` launches multi-step wizard
+- [ ] Each step validates before proceeding
+- [ ] User can go back to previous steps
+- [ ] Escape cancels gracefully with confirmation
+- [ ] Progress indicator shows current step
+- [ ] Final confirmation shows summary before creating
+
+---
+
+### Phase 11: Web UI
+
+#### 11.1 Technology Choice
+
+**Recommended**: Next.js 14 with App Router
+- Server components for initial load
+- Client components for interactivity
+- API routes proxy to Go backend
+- Tailwind CSS for styling
+
+Alternative: React + Vite (simpler, static deployment)
+
+#### 11.2 Project Setup
+
+- [ ] Create `web/` directory
+- [ ] Initialize Next.js project:
+
+```bash
+cd web
+npx create-next-app@latest . --typescript --tailwind --app --src-dir
+```
+
+- [ ] Configure proxy to API backend (development)
+- [ ] Setup environment variables
+
+#### 11.3 Pages
+
+- [ ] **Home/Search** (`/`):
+  - Search bar with instant results
+  - Tag filter sidebar
+  - Trending/popular snippets
+  - Grid/list view toggle
+
+- [ ] **Snippet Detail** (`/snippets/[namespace]/[slug]`):
+  - Template preview with syntax highlighting
+  - Variables table
+  - "Try it" form - input variables, see rendered preview
+  - Copy button for rendered output
+  - Pull command display
+
+- [ ] **User Profile** (`/users/[username]`):
+  - User's public snippets
+  - Stats (total snippets, total pulls)
+
+- [ ] **Dashboard** (`/dashboard`) - Protected:
+  - My snippets list
+  - Quick actions (create, view analytics)
+  - Team snippets (if teams enabled)
+
+- [ ] **Create Snippet** (`/create`) - Protected:
+  - Form matching CLI push
+  - Template editor with syntax highlighting
+  - Live variable extraction preview
+  - Variable configuration
+
+- [ ] **Auth Pages**:
+  - `/login` - Login form
+  - `/register` - Registration form
+  - OAuth buttons (future)
+
+#### 11.4 Components
+
+```
+web/src/components/
+├── layout/
+│   ├── Header.tsx
+│   ├── Footer.tsx
+│   └── Sidebar.tsx
+├── snippets/
+│   ├── SnippetCard.tsx
+│   ├── SnippetGrid.tsx
+│   ├── SnippetDetail.tsx
+│   ├── VariablesTable.tsx
+│   ├── VariablesForm.tsx
+│   └── TemplatePreview.tsx
+├── search/
+│   ├── SearchBar.tsx
+│   ├── TagFilter.tsx
+│   └── SearchResults.tsx
+├── editor/
+│   ├── TemplateEditor.tsx
+│   └── VariableConfig.tsx
+├── auth/
+│   ├── LoginForm.tsx
+│   └── RegisterForm.tsx
+└── ui/
+    ├── Button.tsx
+    ├── Input.tsx
+    ├── Card.tsx
+    └── Modal.tsx
+```
+
+#### 11.5 API Client
+
+- [ ] Create `web/src/lib/api.ts`:
+
+```typescript
+export class APIClient {
+  private baseURL: string;
+  private token: string | null;
+  
+  constructor() {
+    this.baseURL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+    this.token = null;
+  }
+  
+  setToken(token: string) { ... }
+  clearToken() { ... }
+  
+  // Auth
+  async register(data: RegisterRequest): Promise<AuthResponse>
+  async login(data: LoginRequest): Promise<AuthResponse>
+  async me(): Promise<User>
+  
+  // Snippets
+  async search(query: string, tags?: string[]): Promise<SearchResponse>
+  async getSnippet(namespace: string, slug: string): Promise<Snippet>
+  async pullSnippet(namespace: string, slug: string, variables: Record<string, string>): Promise<PullResponse>
+  async createSnippet(data: CreateSnippetRequest): Promise<Snippet>
+  async listMySnippets(): Promise<Snippet[]>
+}
+```
+
+#### 11.6 Key Features
+
+- [ ] **Live Template Preview**:
+  - Enter variables on snippet page
+  - See rendered output in real-time
+  - Copy to clipboard
+
+- [ ] **Syntax Highlighting**:
+  - Use Prism.js or Shiki
+  - Highlight `{{VARIABLES}}` specially
+
+- [ ] **Search with URL State**:
+  - `/search?q=docker&tags=postgres,database`
+  - Shareable search URLs
+
+- [ ] **Responsive Design**:
+  - Mobile-friendly search and browse
+  - Collapsed sidebar on mobile
+
+#### 11.7 Deployment
+
+- [ ] Dockerfile for web container
+- [ ] Add to docker-compose.yml
+- [ ] Configure nginx or Caddy for reverse proxy
+- [ ] Environment-based API URL
+
+**Acceptance Criteria:**
+- [ ] Can search snippets without login
+- [ ] Can view snippet details with variable preview
+- [ ] Can login and view dashboard
+- [ ] Can create snippets via web form
+- [ ] Responsive on mobile devices
+
+---
+
+### Phase 12: AI Chat with Snippet Indexing (Post-MVP)
+
+#### 12.1 Snippet Embedding & Indexing
+
+- [ ] Add vector storage (options):
+  - PostgreSQL with pgvector extension
+  - Pinecone/Weaviate (external service)
+  - Local embedding with SQLite + faiss
+
+- [ ] Create embedding pipeline:
+
+```go
+// internal/ai/embeddings.go
+
+type EmbeddingService struct {
+    client    *Client
+    storage   VectorStorage
+}
+
+func (s *EmbeddingService) IndexSnippet(snippet *models.Snippet) error {
+    // Create embedding from name + description + content sample
+    text := fmt.Sprintf("%s\n%s\n%s",
+        snippet.Name,
+        snippet.Description,
+        truncate(snippet.Content, 500),
+    )
+    
+    embedding, err := s.client.CreateEmbedding(text)
+    if err != nil {
+        return err
+    }
+    
+    return s.storage.Store(snippet.ID, embedding)
+}
+
+func (s *EmbeddingService) SemanticSearch(query string, limit int) ([]string, error) {
+    queryEmbedding, err := s.client.CreateEmbedding(query)
+    if err != nil {
+        return nil, err
+    }
+    
+    return s.storage.Search(queryEmbedding, limit)
+}
+```
+
+- [ ] Background job to index all snippets
+- [ ] Index on snippet create/update
+- [ ] Remove from index on delete
+
+#### 12.2 Chat Interface
+
+- [ ] Create `internal/ai/chat.go`:
+
+```go
+type ChatService struct {
+    client         *Client
+    embeddings     *EmbeddingService
+    snippetService *service.SnippetService
+}
+
+type ChatMessage struct {
+    Role    string `json:"role"` // user, assistant, system
+    Content string `json:"content"`
+}
+
+type ChatRequest struct {
+    Messages []ChatMessage `json:"messages"`
+    UserID   string        `json:"-"`
+}
+
+type ChatResponse struct {
+    Message         ChatMessage `json:"message"`
+    RelevantSnippets []string   `json:"relevant_snippets,omitempty"`
+    SuggestedAction  string     `json:"suggested_action,omitempty"` // pull, generate, search
+}
+
+func (s *ChatService) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, error) {
+    // 1. Extract intent from latest message
+    // 2. If snippet-related, do semantic search
+    // 3. Include relevant snippets in context
+    // 4. Generate response with Claude/GPT
+    // 5. Parse response for actions
+}
+```
+
+#### 12.3 CLI Chat Command
+
+- [ ] Create `internal/cli/commands/chat.go`:
+
+```go
+var chatCmd = &cobra.Command{
+    Use:   "chat",
+    Short: "Chat with AI assistant about snippets",
+    Long: `Interactive chat interface to discover snippets, get help,
+and generate new templates through conversation.`,
+    Run: runChat,
+}
+```
+
+- [ ] Create `internal/cli/tui/chat.go`:
+
+```go
+type chatModel struct {
+    messages    []ChatMessage
+    input       textinput.Model
+    viewport    viewport.Model
+    typing      bool
+    width       int
+    height      int
+}
+
+// Render chat bubbles with different styles for user/assistant
+// Show typing indicator when waiting for response
+// Display suggested snippets as clickable items
+// Support commands like /pull, /generate, /search
+```
+
+#### 12.4 Chat UI Example
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  🤖 GDSNIP Assistant                              [Esc] Exit │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ You: I need to set up a kubernetes deployment       │   │
+│  │      for a python flask app with redis              │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 🤖 I found some relevant snippets:                  │   │
+│  │                                                     │   │
+│  │  📦 demo/k8s-deployment - Basic K8s deployment     │   │
+│  │  📦 demo/k8s-flask - Flask app deployment          │   │
+│  │  📦 demo/docker-redis - Redis setup                │   │
+│  │                                                     │   │
+│  │ Would you like me to:                              │   │
+│  │  [1] Generate a combined template                  │   │
+│  │  [2] Pull k8s-flask and customize it               │   │
+│  │  [3] Show more details about these snippets        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  > █                                                        │
+│  Type a message or /help for commands                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 12.5 Chat Commands
+
+```
+/help           - Show available commands
+/search <query> - Search snippets
+/pull <path>    - Pull a snippet
+/generate       - Generate new snippet
+/clear          - Clear chat history
+/exit           - Exit chat
+```
+
+**Acceptance Criteria:**
+- [ ] Chat can answer questions about available snippets
+- [ ] Semantic search finds relevant snippets
+- [ ] Can pull snippets directly from chat
+- [ ] Can generate new snippets through conversation
+- [ ] Chat history persisted during session
+
+---
+
+## Updated Technical Notes
+
+### AI Integration Considerations
+
+1. **API Key Security**:
+   - Server-side only for API key storage
+   - CLI proxies through backend for AI calls
+   - Never expose API key to client
+
+2. **Cost Management**:
+   - Strict rate limiting per user
+   - Token counting and limits
+   - Consider caching common generations
+
+3. **Fallback Behavior**:
+   - Graceful degradation when AI unavailable
+   - Clear error messages about rate limits
+
+### RBAC Implementation Notes
+
+1. **Permission Checks**:
+   - Always check at service layer
+   - Cache user roles per request
+   - Fail closed (deny by default)
+
+2. **Audit Trail** (Future):
+   - Log permission checks
+   - Track who did what to team resources
+
+### Web UI Notes
+
+1. **Authentication**:
+   - Store JWT in httpOnly cookie (not localStorage)
+   - Refresh token flow for long sessions
+
+2. **Performance**:
+   - Server-side render search results
+   - Client-side for interactive features
+   - Cache snippet metadata
+
+---
+
+## Phase Priority Summary
+
+| Phase | Feature | Impact | Effort | Priority |
+|-------|---------|--------|--------|----------|
+| 8 | Teams & Basic RBAC | High | Medium | P1 |
+| 9 | AI Snippet Generation | Very High | Medium | P1 |
+| 10 | Multi-step TUI Wizards | Medium | Medium | P2 |
+| 11 | Web UI | High | High | P2 |
+| 12 | AI Chat + Indexing | Very High | High | P3 |
+
+**Recommended Order**: Phase 8 → Phase 9 → Phase 10 → Phase 11 → Phase 12
+
+---
+
+## Quick Reference: New Files to Create
+
+### Phase 8: Teams
+```
+migrations/002_teams.up.sql
+migrations/002_teams.down.sql
+pkg/models/team.go
+internal/api/repository/team.go
+internal/api/service/team.go
+internal/api/service/team_test.go
+internal/api/handlers/teams.go
+internal/cli/commands/teams.go
+```
+
+### Phase 9: AI Generation
+```
+internal/ai/client.go
+internal/ai/prompts.go
+internal/api/handlers/ai.go
+internal/cli/commands/generate.go
+internal/cli/tui/generate.go
+```
+
+### Phase 10: Wizards
+```
+internal/cli/tui/wizard/wizard.go
+internal/cli/tui/wizard/steps.go
+internal/cli/tui/wizard/create_snippet.go
+internal/cli/tui/wizard/pull.go
+internal/cli/tui/wizard/create_team.go
+internal/cli/commands/create.go
+```
+
+### Phase 11: Web UI
+```
+web/                          # New Next.js project
+web/src/app/page.tsx          # Home/Search
+web/src/app/snippets/[namespace]/[slug]/page.tsx
+web/src/app/dashboard/page.tsx
+web/src/app/create/page.tsx
+web/src/lib/api.ts
+web/src/components/...
+```
+
+### Phase 12: AI Chat
+```
+internal/ai/embeddings.go
+internal/ai/chat.go
+internal/cli/commands/chat.go
+internal/cli/tui/chat.go
 ```
 
 ---
 
-## Notes
+## Definition of Done (Updated)
 
-1. **MVP First**: Focus on core pull workflow - discovery, pull with variables, push
-2. **Service Layer is King**: All business logic in services, thin handlers
-3. **Security**: 0600 file permissions for credentials, bcrypt cost 12, JWT validation
-4. **Error Messages**: Always actionable - tell user what to do next
-5. **Testing**: Co-located with implementation, not deferred
-6. **Custom Flag Parsing**: Critical for pull command UX (`--VAR=value`)
-7. **Seed Data**: Makes testing/demos much easier - create early
-8. **Pull Command**: Most complex CLI command - interactive prompts, variable resolution
+A feature is complete when:
+
+1. **Code**: Implementation matches specification
+2. **Tests**: Unit and integration tests pass
+3. **Docs**: README updated if user-facing
+4. **Manual**: Feature works end-to-end
+5. **Errors**: Graceful handling with helpful messages
+6. **Security**: Permission checks where applicable
