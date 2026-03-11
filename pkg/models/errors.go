@@ -20,15 +20,18 @@ func (e *APIError) Error() string {
 // HTTPStatus returns the appropriate HTTP status code for the error
 func (e *APIError) HTTPStatus() int {
 	switch e.Code {
-	case "VALIDATION_ERROR", "MISSING_VARIABLES", "INVALID_SLUG":
+	case "VALIDATION_ERROR", "MISSING_VARIABLES", "INVALID_SLUG",
+		"CANNOT_REMOVE_OWNER", "OWNER_CANNOT_LEAVE", "INVALID_ROLE":
 		return http.StatusBadRequest
 	case "UNAUTHORIZED", "INVALID_TOKEN", "TOKEN_EXPIRED":
 		return http.StatusUnauthorized
 	case "FORBIDDEN", "INSUFFICIENT_PERMISSIONS":
 		return http.StatusForbidden
-	case "NOT_FOUND", "SNIPPET_NOT_FOUND", "USER_NOT_FOUND":
+	case "NOT_FOUND", "SNIPPET_NOT_FOUND", "USER_NOT_FOUND",
+		"TEAM_NOT_FOUND", "MEMBER_NOT_FOUND":
 		return http.StatusNotFound
-	case "CONFLICT", "DUPLICATE_USERNAME", "DUPLICATE_EMAIL", "DUPLICATE_SLUG":
+	case "CONFLICT", "DUPLICATE_USERNAME", "DUPLICATE_EMAIL", "DUPLICATE_SLUG",
+		"DUPLICATE_TEAM_SLUG", "ALREADY_MEMBER":
 		return http.StatusConflict
 	case "RATE_LIMIT_EXCEEDED":
 		return http.StatusTooManyRequests
@@ -168,5 +171,63 @@ func NewTokenExpiredError() *APIError {
 	return &APIError{
 		Code:    "TOKEN_EXPIRED",
 		Message: "token has expired",
+	}
+}
+
+// Team-related error constructors
+
+// NewTeamNotFoundError creates a team not found error
+func NewTeamNotFoundError(slug string) *APIError {
+	return &APIError{
+		Code:    "TEAM_NOT_FOUND",
+		Message: fmt.Sprintf("team '%s' not found", slug),
+	}
+}
+
+// NewDuplicateTeamSlugError creates a duplicate team slug error
+func NewDuplicateTeamSlugError(slug string) *APIError {
+	return &APIError{
+		Code:    "DUPLICATE_TEAM_SLUG",
+		Message: fmt.Sprintf("team slug '%s' already exists", slug),
+	}
+}
+
+// NewMemberNotFoundError creates a member not found error
+func NewMemberNotFoundError(username string) *APIError {
+	return &APIError{
+		Code:    "MEMBER_NOT_FOUND",
+		Message: fmt.Sprintf("user '%s' is not a member of this team", username),
+	}
+}
+
+// NewAlreadyMemberError creates an already member error
+func NewAlreadyMemberError(username string) *APIError {
+	return &APIError{
+		Code:    "ALREADY_MEMBER",
+		Message: fmt.Sprintf("user '%s' is already a member of this team", username),
+	}
+}
+
+// NewCannotRemoveOwnerError creates a cannot remove owner error
+func NewCannotRemoveOwnerError() *APIError {
+	return &APIError{
+		Code:    "CANNOT_REMOVE_OWNER",
+		Message: "cannot remove the team owner",
+	}
+}
+
+// NewOwnerCannotLeaveError creates an owner cannot leave error
+func NewOwnerCannotLeaveError() *APIError {
+	return &APIError{
+		Code:    "OWNER_CANNOT_LEAVE",
+		Message: "team owner cannot leave the team; transfer ownership or delete the team instead",
+	}
+}
+
+// NewInvalidRoleError creates an invalid role error
+func NewInvalidRoleError(role string) *APIError {
+	return &APIError{
+		Code:    "INVALID_ROLE",
+		Message: fmt.Sprintf("invalid role '%s'; must be admin, member, or viewer", role),
 	}
 }

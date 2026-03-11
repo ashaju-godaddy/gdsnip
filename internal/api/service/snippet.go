@@ -14,25 +14,28 @@ import (
 type SnippetService struct {
 	snippetRepo *repository.SnippetRepo
 	userRepo    *repository.UserRepo
+	teamRepo    *repository.TeamRepo
 }
 
 // NewSnippetService creates a new snippet service
-func NewSnippetService(snippetRepo *repository.SnippetRepo, userRepo *repository.UserRepo) *SnippetService {
+func NewSnippetService(snippetRepo *repository.SnippetRepo, userRepo *repository.UserRepo, teamRepo *repository.TeamRepo) *SnippetService {
 	return &SnippetService{
 		snippetRepo: snippetRepo,
 		userRepo:    userRepo,
+		teamRepo:    teamRepo,
 	}
 }
 
 // CreateRequest represents snippet creation request
 type CreateRequest struct {
-	Name        string              `json:"name"`
-	Slug        string              `json:"slug"`
-	Description string              `json:"description"`
-	Content     string              `json:"content"`
-	Tags        []string            `json:"tags"`
-	Visibility  string              `json:"visibility"`
-	Metadata    map[string]string   `json:"metadata"`
+	Name        string            `json:"name"`
+	Slug        string            `json:"slug"`
+	Description string            `json:"description"`
+	Content     string            `json:"content"`
+	Tags        []string          `json:"tags"`
+	Visibility  string            `json:"visibility"`
+	Metadata    map[string]string `json:"metadata"`
+	TeamSlug    string            `json:"team_slug,omitempty"` // Optional: push to team namespace
 }
 
 // PullRequest represents snippet pull request
@@ -88,21 +91,58 @@ func (s *SnippetService) Create(userID string, req CreateRequest) (*models.Snipp
 		extractedVars = append(extractedVars, v)
 	}
 
-	// Get user to determine namespace
-	user, err := s.userRepo.GetByID(userID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Default visibility to private
+	// Determine owner type, owner ID, namespace, and default visibility
+	var ownerType, ownerID, namespace string
 	visibility := req.Visibility
-	if visibility == "" {
-		visibility = "private"
-	}
 
-	// Validate visibility
-	if visibility != "public" && visibility != "private" {
-		return nil, models.NewValidationError("visibility must be 'public' or 'private'", nil)
+	if req.TeamSlug != "" {
+		// Team snippet
+		team, err := s.teamRepo.GetBySlug(req.TeamSlug)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check permission to create snippets in this team
+		role, err := s.teamRepo.GetUserRole(team.ID, userID)
+		if err != nil {
+			return nil, models.NewForbiddenError("you are not a member of this team")
+		}
+		if !role.HasPermission(models.PermCreateSnippet) {
+			return nil, models.NewForbiddenError("you do not have permission to create snippets in this team")
+		}
+
+		ownerType = "team"
+		ownerID = team.ID
+		namespace = team.Slug
+
+		// Team snippets default to "team" visibility
+		if visibility == "" {
+			visibility = "team"
+		}
+
+		// Validate visibility for team snippets
+		if visibility != "public" && visibility != "private" && visibility != "team" {
+			return nil, models.NewValidationError("visibility must be 'public', 'private', or 'team'", nil)
+		}
+	} else {
+		// User snippet
+		user, err := s.userRepo.GetByID(userID)
+		if err != nil {
+			return nil, err
+		}
+		ownerType = "user"
+		ownerID = userID
+		namespace = user.Username
+
+		// Default visibility to private for user snippets
+		if visibility == "" {
+			visibility = "private"
+		}
+
+		// Validate visibility for user snippets
+		if visibility != "public" && visibility != "private" {
+			return nil, models.NewValidationError("visibility must be 'public' or 'private'", nil)
+		}
 	}
 
 	// Create snippet
@@ -115,9 +155,9 @@ func (s *SnippetService) Create(userID string, req CreateRequest) (*models.Snipp
 		Variables:   extractedVars,
 		Tags:        req.Tags,
 		Visibility:  visibility,
-		OwnerType:   "user",
-		OwnerID:     userID,
-		Namespace:   user.Username,
+		OwnerType:   ownerType,
+		OwnerID:     ownerID,
+		Namespace:   namespace,
 		CreatedBy:   userID,
 		Version:     1,
 		PullCount:   0,
@@ -143,8 +183,33 @@ func (s *SnippetService) Pull(namespace, slug, userID string, variables map[stri
 		return nil, err
 	}
 
-	// Check visibility - if private, must be owner
-	if snippet.Visibility == "private" && snippet.OwnerID != userID {
+	// Check visibility
+	switch snippet.Visibility {
+	case "private":
+		// Private snippets can only be accessed by owner
+		if snippet.OwnerID != userID {
+			return nil, models.NewNotFoundError("snippet not found")
+		}
+	case "team":
+		// Team-visibility snippets can be accessed by team members
+		if snippet.OwnerType == "team" {
+			isMember, err := s.teamRepo.IsMember(snippet.OwnerID, userID)
+			if err != nil {
+				return nil, models.NewInternalError("failed to check team membership")
+			}
+			if !isMember {
+				return nil, models.NewNotFoundError("snippet not found")
+			}
+		} else {
+			// User-owned snippet with team visibility (shouldn't happen, but handle it)
+			if snippet.OwnerID != userID {
+				return nil, models.NewNotFoundError("snippet not found")
+			}
+		}
+	case "public":
+		// Public snippets are accessible to everyone
+	default:
+		// Unknown visibility, deny access
 		return nil, models.NewNotFoundError("snippet not found")
 	}
 
@@ -200,4 +265,29 @@ func (s *SnippetService) ListMine(userID string, limit, offset int) ([]models.Sn
 	}
 
 	return s.snippetRepo.ListByOwner("user", userID, limit, offset)
+}
+
+// ListTeamSnippets lists snippets owned by a team
+func (s *SnippetService) ListTeamSnippets(userID, teamSlug string, limit, offset int) ([]models.Snippet, int, error) {
+	// Get team
+	team, err := s.teamRepo.GetBySlug(teamSlug)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Check membership
+	_, err = s.teamRepo.GetUserRole(team.ID, userID)
+	if err != nil {
+		return nil, 0, models.NewForbiddenError("you are not a member of this team")
+	}
+
+	// Apply defaults
+	if limit == 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	return s.snippetRepo.ListByOwner("team", team.ID, limit, offset)
 }

@@ -21,6 +21,7 @@ var (
 	pushDescription string
 	pushTags        []string
 	pushPublic      bool
+	pushTeam        string
 )
 
 var pushCmd = &cobra.Command{
@@ -33,7 +34,8 @@ Examples:
   gdsnip push -f template.yml -n "Docker Postgres"
   gdsnip push -f template.yml -n "My Template" --public
   gdsnip push -f template.yml -n "My Template" -s custom-slug -t docker -t database
-  gdsnip push -f template.yml -n "Private Template" -d "My private template"`,
+  gdsnip push -f template.yml -n "Private Template" -d "My private template"
+  gdsnip push -f template.yml -n "Shared Config" --team platform`,
 	RunE: runPush,
 }
 
@@ -44,6 +46,7 @@ func init() {
 	pushCmd.Flags().StringVarP(&pushDescription, "description", "d", "", "Snippet description")
 	pushCmd.Flags().StringSliceVarP(&pushTags, "tags", "t", []string{}, "Tags (can be used multiple times)")
 	pushCmd.Flags().BoolVar(&pushPublic, "public", false, "Make snippet public (default: private)")
+	pushCmd.Flags().StringVar(&pushTeam, "team", "", "Push snippet to a team namespace")
 
 	pushCmd.MarkFlagRequired("file")
 	pushCmd.MarkFlagRequired("name")
@@ -96,6 +99,8 @@ func runPush(cmd *cobra.Command, args []string) error {
 	visibility := "private"
 	if pushPublic {
 		visibility = "public"
+	} else if pushTeam != "" {
+		visibility = "team" // Default to team visibility for team snippets
 	}
 
 	// Display summary
@@ -104,6 +109,9 @@ func runPush(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  %s %s\n", tui.FormatDim("Slug:"), tui.FormatCode(slug))
 	if pushDescription != "" {
 		fmt.Printf("  %s %s\n", tui.FormatDim("Description:"), pushDescription)
+	}
+	if pushTeam != "" {
+		fmt.Printf("  %s %s\n", tui.FormatDim("Team:"), tui.FormatHighlight(pushTeam))
 	}
 	fmt.Printf("  %s %s\n", tui.FormatDim("Visibility:"), visibility)
 	if len(pushTags) > 0 {
@@ -132,6 +140,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 		Content:     contentStr,
 		Tags:        pushTags,
 		Visibility:  visibility,
+		TeamSlug:    pushTeam,
 	}
 
 	// Create snippet with spinner
@@ -146,9 +155,15 @@ func runPush(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create snippet: %w", err)
 	}
 
-	// Get current user for namespace
-	creds, _ := config.LoadCredentials()
-	path := fmt.Sprintf("%s/%s", creds.Username, snippet.Slug)
+	// Get namespace for display
+	var namespace string
+	if pushTeam != "" {
+		namespace = pushTeam
+	} else {
+		creds, _ := config.LoadCredentials()
+		namespace = creds.Username
+	}
+	path := fmt.Sprintf("%s/%s", namespace, snippet.Slug)
 
 	// Display success
 	fmt.Println()
@@ -158,16 +173,16 @@ func runPush(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  %s %s\n", tui.FormatLabel("Visibility"), snippet.Visibility)
 	fmt.Println()
 	fmt.Println(tui.FormatInfo("To pull this snippet, run:"))
-	pullCmd := fmt.Sprintf("gdsnip pull %s", path)
+	pullCmdStr := fmt.Sprintf("gdsnip pull %s", path)
 
 	// Add example variables if available
 	if len(variableNames) > 0 && len(variableNames) <= 2 {
 		for _, name := range variableNames {
-			pullCmd += fmt.Sprintf(" --%s=value", name)
+			pullCmdStr += fmt.Sprintf(" --%s=value", name)
 		}
 	}
 
-	fmt.Printf("  %s\n", tui.FormatCode(pullCmd))
+	fmt.Printf("  %s\n", tui.FormatCode(pullCmdStr))
 	fmt.Println()
 
 	return nil

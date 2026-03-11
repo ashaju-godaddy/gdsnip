@@ -33,14 +33,17 @@ func New(cfg *config.Config) (*Server, error) {
 	// Initialize repositories
 	userRepo := repository.NewUserRepo(db)
 	snippetRepo := repository.NewSnippetRepo(db)
+	teamRepo := repository.NewTeamRepo(db)
 
 	// Initialize services
 	authService := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiry)
-	snippetService := service.NewSnippetService(snippetRepo, userRepo)
+	teamService := service.NewTeamService(teamRepo, userRepo)
+	snippetService := service.NewSnippetService(snippetRepo, userRepo, teamRepo)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	snippetHandler := handlers.NewSnippetHandler(snippetService)
+	teamHandler := handlers.NewTeamHandler(teamService, snippetService)
 
 	// Create Echo instance
 	e := echo.New()
@@ -61,7 +64,7 @@ func New(cfg *config.Config) (*Server, error) {
 	optionalJwtMiddleware := middleware.OptionalJWTMiddleware(authService)
 
 	// Register routes
-	setupRoutes(e, authHandler, snippetHandler, jwtMiddleware, optionalJwtMiddleware)
+	setupRoutes(e, authHandler, snippetHandler, teamHandler, jwtMiddleware, optionalJwtMiddleware)
 
 	return &Server{
 		echo:   e,
@@ -71,7 +74,7 @@ func New(cfg *config.Config) (*Server, error) {
 }
 
 // setupRoutes registers all API routes
-func setupRoutes(e *echo.Echo, authHandler *handlers.AuthHandler, snippetHandler *handlers.SnippetHandler, jwtMiddleware echo.MiddlewareFunc, optionalJwtMiddleware echo.MiddlewareFunc) {
+func setupRoutes(e *echo.Echo, authHandler *handlers.AuthHandler, snippetHandler *handlers.SnippetHandler, teamHandler *handlers.TeamHandler, jwtMiddleware echo.MiddlewareFunc, optionalJwtMiddleware echo.MiddlewareFunc) {
 	// Health check
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]interface{}{
@@ -90,16 +93,30 @@ func setupRoutes(e *echo.Echo, authHandler *handlers.AuthHandler, snippetHandler
 
 	// Public snippet routes
 	snippets := v1.Group("/snippets")
-	snippets.GET("", snippetHandler.Search)                                          // Search public snippets
-	snippets.GET("/:namespace/:slug", snippetHandler.Get)                            // Get snippet details
+	snippets.GET("", snippetHandler.Search)                                             // Search public snippets
+	snippets.GET("/:namespace/:slug", snippetHandler.Get)                               // Get snippet details
 	snippets.POST("/:namespace/:slug/pull", snippetHandler.Pull, optionalJwtMiddleware) // Pull snippet (render) - optional auth
 
 	// Protected snippet routes
-	snippets.POST("", snippetHandler.Create, jwtMiddleware)           // Create snippet
+	snippets.POST("", snippetHandler.Create, jwtMiddleware) // Create snippet
 
 	// User routes (protected)
 	users := v1.Group("/users", jwtMiddleware)
-	users.GET("/me/snippets", snippetHandler.ListMine)                // List my snippets
+	users.GET("/me/snippets", snippetHandler.ListMine) // List my snippets
+
+	// Team routes (protected)
+	teams := v1.Group("/teams", jwtMiddleware)
+	teams.POST("", teamHandler.Create)                                // Create team
+	teams.GET("", teamHandler.List)                                   // List my teams
+	teams.GET("/:slug", teamHandler.Get)                              // Get team
+	teams.PUT("/:slug", teamHandler.Update)                           // Update team
+	teams.DELETE("/:slug", teamHandler.Delete)                        // Delete team
+	teams.GET("/:slug/members", teamHandler.ListMembers)              // List members
+	teams.POST("/:slug/members", teamHandler.AddMember)               // Add member
+	teams.PUT("/:slug/members/:username", teamHandler.UpdateMemberRole) // Update role
+	teams.DELETE("/:slug/members/:username", teamHandler.RemoveMember)  // Remove member
+	teams.POST("/:slug/leave", teamHandler.Leave)                     // Leave team
+	teams.GET("/:slug/snippets", teamHandler.ListSnippets)            // List team snippets
 }
 
 // Start starts the API server

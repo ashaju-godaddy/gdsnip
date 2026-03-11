@@ -109,6 +109,7 @@ type CreateSnippetRequest struct {
 	Tags        []string          `json:"tags,omitempty"`
 	Visibility  string            `json:"visibility,omitempty"`
 	Metadata    map[string]string `json:"metadata,omitempty"`
+	TeamSlug    string            `json:"team_slug,omitempty"`
 }
 
 // CreateSnippet creates a new snippet
@@ -284,6 +285,17 @@ func (c *Client) doRequest(method, path string, payload interface{}, result inte
 			if envelope.Pagination != nil {
 				v.Pagination = *envelope.Pagination
 			}
+		case *TeamListResponse:
+			if err := json.Unmarshal(envelope.Data, &v.Teams); err != nil {
+				return fmt.Errorf("failed to parse response data: %w", err)
+			}
+			if envelope.Pagination != nil {
+				v.Pagination = *envelope.Pagination
+			}
+		case *TeamMemberListResponse:
+			if err := json.Unmarshal(envelope.Data, v); err != nil {
+				return fmt.Errorf("failed to parse response data: %w", err)
+			}
 		default:
 			if err := json.Unmarshal(envelope.Data, result); err != nil {
 				return fmt.Errorf("failed to parse response data: %w", err)
@@ -297,7 +309,7 @@ func (c *Client) doRequest(method, path string, payload interface{}, result inte
 // parseError parses an error response
 func parseError(body []byte) error {
 	var envelope struct {
-		Success bool          `json:"success"`
+		Success bool             `json:"success"`
 		Error   *models.APIError `json:"error"`
 	}
 
@@ -310,4 +322,133 @@ func parseError(body []byte) error {
 	}
 
 	return fmt.Errorf("unknown API error")
+}
+
+// Team types
+
+// Team represents a team
+type Team struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Slug        string    `json:"slug"`
+	Description string    `json:"description"`
+	CreatedBy   string    `json:"created_by"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	MemberCount int       `json:"member_count"`
+	Role        string    `json:"role"`
+}
+
+// TeamMember represents a team member
+type TeamMember struct {
+	ID        string    `json:"id"`
+	TeamID    string    `json:"team_id"`
+	UserID    string    `json:"user_id"`
+	Role      string    `json:"role"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// CreateTeamRequest represents a team creation request
+type CreateTeamRequest struct {
+	Name        string `json:"name"`
+	Slug        string `json:"slug,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// TeamListResponse represents a list of teams
+type TeamListResponse struct {
+	Teams      []Team     `json:"data"`
+	Pagination Pagination `json:"pagination"`
+}
+
+// TeamMemberListResponse represents a list of team members
+type TeamMemberListResponse struct {
+	Members []TeamMember `json:"members"`
+	Total   int          `json:"total"`
+}
+
+// CreateTeam creates a new team
+func (c *Client) CreateTeam(req *CreateTeamRequest) (*Team, error) {
+	var team Team
+	if err := c.doRequest("POST", "/teams", req, &team, true); err != nil {
+		return nil, err
+	}
+	return &team, nil
+}
+
+// ListTeams lists teams the user is a member of
+func (c *Client) ListTeams(limit, offset int) (*TeamListResponse, error) {
+	path := fmt.Sprintf("/teams?limit=%d&offset=%d", limit, offset)
+	var response TeamListResponse
+	if err := c.doRequest("GET", path, nil, &response, true); err != nil {
+		return nil, err
+	}
+	return &response, nil
+}
+
+// GetTeam retrieves a team by slug
+func (c *Client) GetTeam(slug string) (*Team, error) {
+	var team Team
+	path := fmt.Sprintf("/teams/%s", slug)
+	if err := c.doRequest("GET", path, nil, &team, true); err != nil {
+		return nil, err
+	}
+	return &team, nil
+}
+
+// DeleteTeam deletes a team
+func (c *Client) DeleteTeam(slug string) error {
+	path := fmt.Sprintf("/teams/%s", slug)
+	return c.doRequest("DELETE", path, nil, nil, true)
+}
+
+// ListTeamMembers lists members of a team
+func (c *Client) ListTeamMembers(slug string) ([]TeamMember, error) {
+	path := fmt.Sprintf("/teams/%s/members", slug)
+	var response TeamMemberListResponse
+	if err := c.doRequest("GET", path, nil, &response, true); err != nil {
+		return nil, err
+	}
+	return response.Members, nil
+}
+
+// AddTeamMember adds a member to a team
+func (c *Client) AddTeamMember(teamSlug, username, role string) error {
+	path := fmt.Sprintf("/teams/%s/members", teamSlug)
+	req := map[string]string{
+		"username": username,
+		"role":     role,
+	}
+	return c.doRequest("POST", path, req, nil, true)
+}
+
+// RemoveTeamMember removes a member from a team
+func (c *Client) RemoveTeamMember(teamSlug, username string) error {
+	path := fmt.Sprintf("/teams/%s/members/%s", teamSlug, username)
+	return c.doRequest("DELETE", path, nil, nil, true)
+}
+
+// UpdateTeamMemberRole updates a member's role
+func (c *Client) UpdateTeamMemberRole(teamSlug, username, role string) error {
+	path := fmt.Sprintf("/teams/%s/members/%s", teamSlug, username)
+	req := map[string]string{"role": role}
+	return c.doRequest("PUT", path, req, nil, true)
+}
+
+// LeaveTeam allows a user to leave a team
+func (c *Client) LeaveTeam(slug string) error {
+	path := fmt.Sprintf("/teams/%s/leave", slug)
+	return c.doRequest("POST", path, nil, nil, true)
+}
+
+// ListTeamSnippets lists all snippets belonging to a team
+func (c *Client) ListTeamSnippets(teamSlug string, limit, offset int) (*ListResponse, error) {
+	path := fmt.Sprintf("/teams/%s/snippets?limit=%d&offset=%d", teamSlug, limit, offset)
+	var response ListResponse
+	if err := c.doRequest("GET", path, nil, &response, true); err != nil {
+		return nil, err
+	}
+	return &response, nil
 }

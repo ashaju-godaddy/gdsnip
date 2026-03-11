@@ -1,0 +1,28 @@
+routes:
+  - match:
+      prefix: /post/
+      headers:
+        - name: :method
+          string_match:
+            safe_regex:
+              regex: POST
+    route:
+      upstream: redis
+      auto_host_rewrite: true
+metadata:
+  display_name: edge-ui
+  application_id: 5331
+  spec_url: swageer//
+per_route_filters:
+  - filter_type: authz_per_route
+    options:
+      check_settings:
+        context_extensions:
+          allowed-auth-types: authz
+ratelimits:
+  default:
+    unit: s
+    limit: 100
+upstreams:
+  - id: redis
+    socket_address: api.godaddy.dev

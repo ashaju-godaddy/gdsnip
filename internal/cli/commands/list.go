@@ -6,6 +6,7 @@ import (
 	"github.com/ashaju-godaddy/gdsnip/internal/cli/api"
 	"github.com/ashaju-godaddy/gdsnip/internal/cli/config"
 	"github.com/ashaju-godaddy/gdsnip/internal/cli/tui"
+	"github.com/ashaju-godaddy/gdsnip/pkg/models"
 	"github.com/spf13/cobra"
 )
 
@@ -17,10 +18,10 @@ var (
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List your snippets",
-	Long: `List all snippets owned by the current user.
+	Long: `List all snippets you have access to, including personal and team snippets.
 
 Examples:
-  gdsnip list                # List your snippets
+  gdsnip list                # List all your snippets
   gdsnip list --limit 50     # List with custom limit`,
 	RunE: runList,
 }
@@ -44,12 +45,44 @@ func runList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
-	// List snippets with spinner
-	var response *api.ListResponse
+	// Fetch user snippets and team snippets with spinner
+	var userSnippets *api.ListResponse
+	var teams *api.TeamListResponse
+	var allSnippets []*models.Snippet
+
 	err = tui.RunWithSpinner("Loading your snippets...", func() error {
-		var listErr error
-		response, listErr = client.ListMySnippets(listLimit, listOffset)
-		return listErr
+		var err error
+
+		// Get user's personal snippets
+		userSnippets, err = client.ListMySnippets(100, 0) // Get more to combine with team snippets
+		if err != nil {
+			return err
+		}
+
+		// Get user's teams
+		teams, err = client.ListTeams(50, 0)
+		if err != nil {
+			return err
+		}
+
+		// Combine user snippets (convert to pointers)
+		for i := range userSnippets.Snippets {
+			allSnippets = append(allSnippets, &userSnippets.Snippets[i])
+		}
+
+		// Fetch team snippets for each team
+		for _, team := range teams.Teams {
+			teamSnippets, err := client.ListTeamSnippets(team.Slug, 100, 0)
+			if err != nil {
+				// Continue even if we can't fetch some team snippets
+				continue
+			}
+			for i := range teamSnippets.Snippets {
+				allSnippets = append(allSnippets, &teamSnippets.Snippets[i])
+			}
+		}
+
+		return nil
 	})
 
 	if err != nil {
@@ -57,7 +90,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display results
-	if len(response.Snippets) == 0 {
+	if len(allSnippets) == 0 {
 		fmt.Println()
 		fmt.Println(tui.FormatInfo("You don't have any snippets yet"))
 		fmt.Println()
@@ -67,30 +100,45 @@ func runList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Get current user
-	creds, _ := config.LoadCredentials()
+	// Apply pagination to combined results
+	totalSnippets := len(allSnippets)
+	if listOffset >= totalSnippets {
+		fmt.Println()
+		fmt.Println(tui.FormatInfo("No more snippets to display"))
+		fmt.Println()
+		return nil
+	}
+
+	end := listOffset + listLimit
+	if end > totalSnippets {
+		end = totalSnippets
+	}
+
+	displaySnippets := allSnippets[listOffset:end]
 
 	// Display header
 	fmt.Println()
 	fmt.Printf("%s %s %d of %d\n",
-		tui.FormatTitle(fmt.Sprintf("%s's Snippets", creds.Username)),
+		tui.FormatTitle("All Your Snippets"),
 		tui.FormatDim("Showing"),
-		len(response.Snippets),
-		response.Pagination.Total,
+		len(displaySnippets),
+		totalSnippets,
 	)
 	fmt.Println()
 
 	// Display table
-	for i, snippet := range response.Snippets {
+	for i, snippet := range displaySnippets {
 		// Snippet path with visibility indicator
 		path := fmt.Sprintf("%s/%s", snippet.Namespace, snippet.Slug)
 		visibilityIcon := "🔒"
 		if snippet.Visibility == "public" {
 			visibilityIcon = "🌐"
+		} else if snippet.Visibility == "team" {
+			visibilityIcon = "👥"
 		}
 
 		fmt.Printf("%s %s %s\n",
-			tui.FormatDim(fmt.Sprintf("%d.", i+1)),
+			tui.FormatDim(fmt.Sprintf("%d.", listOffset+i+1)),
 			visibilityIcon,
 			tui.FormatHighlight(path),
 		)
@@ -125,16 +173,16 @@ func runList(cmd *cobra.Command, args []string) error {
 		)
 
 		// Separator
-		if i < len(response.Snippets)-1 {
+		if i < len(displaySnippets)-1 {
 			fmt.Println()
 		}
 	}
 
 	// Pagination hint
-	if response.Pagination.Total > len(response.Snippets) {
+	if totalSnippets > len(displaySnippets) {
 		fmt.Println()
-		fmt.Println(tui.FormatDim(fmt.Sprintf("Showing %d of %d total snippets", len(response.Snippets), response.Pagination.Total)))
-		if response.Pagination.Total > listOffset+listLimit {
+		fmt.Println(tui.FormatDim(fmt.Sprintf("Showing %d of %d total snippets", len(displaySnippets), totalSnippets)))
+		if totalSnippets > listOffset+listLimit {
 			fmt.Println(tui.FormatDim("To see more, use: gdsnip list --offset " + fmt.Sprint(listOffset+listLimit)))
 		}
 	}

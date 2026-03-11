@@ -17,12 +17,13 @@ func TestSnippetService_Create(t *testing.T) {
 	}
 	defer cleanup()
 
-	// Create snippet repo
+	// Create repos
 	db, _ := repository.NewDB("postgres://gdsnip:gdsnip@localhost:5432/gdsnip?sslmode=disable")
 	snippetRepo := repository.NewSnippetRepo(db)
+	teamRepo := repository.NewTeamRepo(db)
 	defer db.Close()
 
-	snippetService := NewSnippetService(snippetRepo, userRepo)
+	snippetService := NewSnippetService(snippetRepo, userRepo, teamRepo)
 	authService := NewAuthService(userRepo, "test-secret-key-that-is-very-long", 24*3600*1000000000)
 
 	// Create a test user
@@ -141,9 +142,10 @@ func TestSnippetService_Pull(t *testing.T) {
 
 	db, _ := repository.NewDB("postgres://gdsnip:gdsnip@localhost:5432/gdsnip?sslmode=disable")
 	snippetRepo := repository.NewSnippetRepo(db)
+	teamRepo := repository.NewTeamRepo(db)
 	defer db.Close()
 
-	snippetService := NewSnippetService(snippetRepo, userRepo)
+	snippetService := NewSnippetService(snippetRepo, userRepo, teamRepo)
 	authService := NewAuthService(userRepo, "test-secret-key-that-is-very-long", 24*3600*1000000000)
 
 	// Create test user and snippet
@@ -233,9 +235,10 @@ func TestSnippetService_Search(t *testing.T) {
 
 	db, _ := repository.NewDB("postgres://gdsnip:gdsnip@localhost:5432/gdsnip?sslmode=disable")
 	snippetRepo := repository.NewSnippetRepo(db)
+	teamRepo := repository.NewTeamRepo(db)
 	defer db.Close()
 
-	snippetService := NewSnippetService(snippetRepo, userRepo)
+	snippetService := NewSnippetService(snippetRepo, userRepo, teamRepo)
 	authService := NewAuthService(userRepo, "test-secret-key-that-is-very-long", 24*3600*1000000000)
 
 	// Create test user and snippets
@@ -331,9 +334,10 @@ func TestSnippetService_ListMine(t *testing.T) {
 
 	db, _ := repository.NewDB("postgres://gdsnip:gdsnip@localhost:5432/gdsnip?sslmode=disable")
 	snippetRepo := repository.NewSnippetRepo(db)
+	teamRepo := repository.NewTeamRepo(db)
 	defer db.Close()
 
-	snippetService := NewSnippetService(snippetRepo, userRepo)
+	snippetService := NewSnippetService(snippetRepo, userRepo, teamRepo)
 	authService := NewAuthService(userRepo, "test-secret-key-that-is-very-long", 24*3600*1000000000)
 
 	// Create test users
@@ -405,9 +409,10 @@ func TestSnippetService_GetByPath(t *testing.T) {
 
 	db, _ := repository.NewDB("postgres://gdsnip:gdsnip@localhost:5432/gdsnip?sslmode=disable")
 	snippetRepo := repository.NewSnippetRepo(db)
+	teamRepo := repository.NewTeamRepo(db)
 	defer db.Close()
 
-	snippetService := NewSnippetService(snippetRepo, userRepo)
+	snippetService := NewSnippetService(snippetRepo, userRepo, teamRepo)
 	authService := NewAuthService(userRepo, "test-secret-key-that-is-very-long", 24*3600*1000000000)
 
 	user, _, err := authService.Register("getpath@example.com", "getpathuser", "password123")

@@ -1,0 +1,28 @@
+routes:
+  - match:
+      prefix: {{URL_PREFIX}}
+      headers:
+        - name: :method
+          string_match:
+            safe_regex:
+              regex: {{HTTP_METHOD}}
+    route:
+      upstream: {{UPSTREAM_NAME}}
+      auto_host_rewrite: true
+metadata:
+  display_name: {{SERVICE_NAME}}
+  application_id: {{APPLICATION_ID}}
+  spec_url: {{SPEC_URL}}
+per_route_filters:
+  - filter_type: authz_per_route
+    options:
+      check_settings:
+        context_extensions:
+          allowed-auth-types: {{AUTH_TYPE}}
+ratelimits:
+  default:
+    unit: {{RATE_LIMIT_UNIT}}
+    limit: {{RATE_LIMIT}}
+upstreams:
+  - id: {{UPSTREAM_NAME}}
+    socket_address: {{UPSTREAM_HOST}}
